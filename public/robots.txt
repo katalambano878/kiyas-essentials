@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /account/
+Disallow: /checkout/
+Disallow: /api/
+
+# Set NEXT_PUBLIC_APP_URL in production; placeholder below for local/dev.
+Sitemap: https://example.com/sitemap.xml
