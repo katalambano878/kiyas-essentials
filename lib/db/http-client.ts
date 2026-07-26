@@ -4,13 +4,24 @@
  */
 
 type Row = Record<string, unknown>;
+type QueryResult = {
+  data: any;
+  error: { message: string } | null;
+  count: number | null;
+};
 type Session = {
   access_token: string;
   refresh_token: string;
   expires_in: number;
   expires_at: number;
   token_type: string;
-  user: Record<string, unknown>;
+  user: {
+    id: string;
+    email: string | null;
+    phone?: string | null;
+    app_metadata?: Record<string, unknown>;
+    user_metadata?: Record<string, unknown>;
+  };
 };
 
 type AuthChangeCallback = (event: string, session: Session | null) => void;
@@ -55,7 +66,7 @@ function loadStoredSession(): Session | null {
     expires_in: 0,
     expires_at: 0,
     token_type: 'bearer',
-    user: {},
+    user: { id: '', email: null },
   };
 }
 
@@ -134,7 +145,7 @@ type FilterEntry =
   | { kind: 'notIn'; col: string; value: string }
   | { kind: 'notIs'; col: string; value: unknown };
 
-class HttpQueryBuilder implements PromiseLike<{ data: any; error: any; count: number | null }> {
+class HttpQueryBuilder implements PromiseLike<QueryResult> {
   private table: string;
   private action: 'select' | 'insert' | 'update' | 'upsert' | 'delete' = 'select';
   private selectStr = '*';
@@ -323,7 +334,7 @@ class HttpQueryBuilder implements PromiseLike<{ data: any; error: any; count: nu
     return params;
   }
 
-  private async run(): Promise<{ data: any; error: any; count: number | null }> {
+  private async run(): Promise<QueryResult> {
     const base = resolveBaseUrl();
     const params = this.buildSearchParams();
     const headers = apiHeaders();
@@ -389,9 +400,7 @@ class HttpQueryBuilder implements PromiseLike<{ data: any; error: any; count: nu
     }
   }
 
-  private async parseRestResponse(
-    res: Response
-  ): Promise<{ data: any; error: any; count: number | null }> {
+  private async parseRestResponse(res: Response): Promise<QueryResult> {
     let count: number | null = null;
     const range = res.headers.get('content-range');
     if (range) {
@@ -428,8 +437,8 @@ class HttpQueryBuilder implements PromiseLike<{ data: any; error: any; count: nu
     return { data, error: null, count };
   }
 
-  then<TResult1 = { data: any; error: any; count: number | null }, TResult2 = never>(
-    onfulfilled?: ((value: { data: any; error: any; count: number | null }) => TResult1 | PromiseLike<TResult1>) | null,
+  then<TResult1 = QueryResult, TResult2 = never>(
+    onfulfilled?: ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): Promise<TResult1 | TResult2> {
     return this.run().then(onfulfilled, onrejected);
