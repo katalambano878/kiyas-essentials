@@ -29,7 +29,7 @@ export default async function CategoriesPage() {
     { color: 'from-[#BE185D] to-[#F9A8D4]', icon: 'ri-star-smile-line' },
   ];
 
-  const categories = categoriesData?.map((c, i) => {
+  const categories = categoriesData?.map((c: any, i: number) => {
     const style = palette[i % palette.length];
     return {
       ...c,
