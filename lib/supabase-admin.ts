@@ -1,25 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
+import { isPlainPostgres } from './db/mode';
+import { createClient as createPgClient } from './db/supabase-compat';
 
 /**
- * Server-side Supabase client with service role key.
- * ONLY use this in API routes and server actions — NEVER in client components.
- * This bypasses RLS, so always verify the caller is authorized first.
+ * Server-side admin client (plain Postgres compat only).
+ * ONLY use in API routes / server actions — never in client components.
  */
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
+function createAdminClient() {
+  if (!isPlainPostgres()) {
+    throw new Error(
+      'Plain Postgres mode required: set DATABASE_URL (or POSTGRES_URL) for server-side supabaseAdmin.'
+    );
+  }
+  return createPgClient();
 }
 
-if (!supabaseServiceKey) {
-    console.error('CRITICAL: Missing SUPABASE_SERVICE_ROLE_KEY — admin operations will fail');
-}
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey || '', {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-    },
-});
+export const supabaseAdmin: ReturnType<typeof createPgClient> = createAdminClient();

@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -79,7 +80,7 @@ export default function ProductCard({
   const discount = originalPrice ? Math.round((1 - displayPrice / originalPrice) * 100) : 0;
   const MAX_SWATCHES = 5;
 
-  const formatPrice = (val: number) => `GH₵${val.toFixed(2)}`;
+  const formatPrice = (val: number) => `GH₵${money(val)}`;
 
   return (
     <article className="group relative flex flex-col h-full w-full bg-white rounded-[2rem] border border-gray-100 p-1.5 transition-all duration-500 hover:shadow-[0_20px_40px_-15px_rgba(190,24,93,0.12)] hover:border-[#BE185D]/20">

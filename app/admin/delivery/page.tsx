@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -123,7 +124,7 @@ export default function DeliveryDashboard() {
                                 <span className="text-gray-200 text-sm font-medium">Today&apos;s Delivery Revenue</span>
                                 <i className="ri-money-cny-circle-line text-2xl text-gray-200" />
                             </div>
-                            <p className="text-3xl font-bold">GH₵ {(stats?.todayRevenue || 0).toFixed(2)}</p>
+                            <p className="text-3xl font-bold">GH₵ {money(stats?.todayRevenue || 0)}</p>
                             <p className="text-gray-200 text-sm mt-2">{stats?.deliveredToday || 0} deliveries completed</p>
                         </div>
 
@@ -232,7 +233,7 @@ export default function DeliveryDashboard() {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-sm font-semibold text-gray-900">GH₵ {a.delivery_fee?.toFixed(2)}</p>
+                                            <p className="text-sm font-semibold text-gray-900">GH₵ {money(a.delivery_fee)}</p>
                                             <p className="text-xs text-gray-500">
                                                 {a.delivered_at ? new Date(a.delivered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                                             </p>

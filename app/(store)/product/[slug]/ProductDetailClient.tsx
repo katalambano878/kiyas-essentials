@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -408,13 +409,13 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                 <div className="flex items-baseline space-x-4 mb-6">
                   {hasVariants && !selectedVariant ? (
                     <span className="text-3xl lg:text-4xl font-bold text-gray-900">
-                      From GH₵{minVariantPrice.toFixed(2)}
+                      From GH₵{money(minVariantPrice)}
                     </span>
                   ) : (
-                    <span className="text-3xl lg:text-4xl font-bold text-gray-900">GH₵{activePrice.toFixed(2)}</span>
+                    <span className="text-3xl lg:text-4xl font-bold text-gray-900">GH₵{money(activePrice)}</span>
                   )}
                   {product.compare_at_price && product.compare_at_price > activePrice && (
-                    <span className="text-xl text-gray-400 line-through">GH₵{product.compare_at_price.toFixed(2)}</span>
+                    <span className="text-xl text-gray-400 line-through">GH₵{money(product.compare_at_price)}</span>
                   )}
                 </div>
 
@@ -505,7 +506,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{stepLabel}Size / Type</span>
                             {selectedVariant
-                              ? <span className="text-sm font-semibold text-gray-900">GH₵{(selectedVariant.price || product.price).toFixed(2)}</span>
+                              ? <span className="text-sm font-semibold text-gray-900">GH₵{money((selectedVariant.price || product.price))}</span>
                               : <span className="text-xs text-[#FF6666] font-medium animate-pulse">← Pick a size</span>
                             }
                           </div>
@@ -533,7 +534,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                                       <span className="w-full aspect-square bg-gray-100 flex items-center justify-center text-xs text-gray-500 font-medium px-1 text-center">{variant.name}</span>
                                     )}
                                     <span className={`block text-center text-[11px] font-semibold py-1 px-1 truncate ${isSelected ? 'bg-gray-900 text-white' : 'bg-white text-gray-600'}`}>
-                                      GH₵{(variant.price || product.price).toFixed(2)}
+                                      GH₵{money((variant.price || product.price))}
                                     </span>
                                     {isSelected && (
                                       <span className="absolute top-1 right-1 w-5 h-5 bg-gray-900 rounded-full flex items-center justify-center">
@@ -566,7 +567,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                                   >
                                     <span>{variant.name}</span>
                                     <span className={`block text-[11px] mt-0.5 ${isSelected ? 'text-gray-300' : 'text-gray-400'}`}>
-                                      GH₵{(variant.price || product.price).toFixed(2)}
+                                      GH₵{money((variant.price || product.price))}
                                     </span>
                                   </button>
                                 );

@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';

@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useState, useEffect, useRef } from 'react';
 import { DEFAULT_SITE_NAME } from '@/lib/site-defaults';
@@ -193,7 +194,7 @@ export default function PrintInventoryPage() {
                             <td className="p-3 border border-gray-300 font-semibold text-sm">{product.name}</td>
                             <td className="p-3 border border-gray-300 text-sm font-mono text-gray-700">{product.sku || '-'}</td>
                             <td className="p-3 border border-gray-300 text-sm">{product.category || '-'}</td>
-                            <td className="p-3 border border-gray-300 text-right font-medium whitespace-nowrap">GH₵ {(Number(product.price) || 0).toFixed(2)}</td>
+                            <td className="p-3 border border-gray-300 text-right font-medium whitespace-nowrap">GH₵ {money((Number(product.price) || 0))}</td>
                             <td className="p-3 border border-gray-300 text-center font-bold">{product.stock ?? 0}</td>
                             <td className="p-3 border border-gray-300 text-right font-semibold whitespace-nowrap">GH₵ {((Number(product.price) || 0) * (Number(product.stock) ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             <td className="p-3 border border-gray-300 text-center text-xs uppercase font-semibold tracking-wider">{product.status}</td>

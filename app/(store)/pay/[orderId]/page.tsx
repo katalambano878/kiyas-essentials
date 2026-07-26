@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -187,7 +188,7 @@ export default function PaymentPage() {
                       {isOOS && <i className="ri-close-circle-fill text-[#FF6666]"></i>}
                       {item.product_name}{item.variant_name ? ` — ${item.variant_name}` : ''} × {item.quantity}
                     </span>
-                    <span>GH₵ {(item.unit_price * item.quantity).toFixed(2)}</span>
+                    <span>GH₵ {money((item.unit_price * item.quantity))}</span>
                   </div>
                 );
               })}
@@ -197,23 +198,23 @@ export default function PaymentPage() {
           <div className="space-y-3 mb-4">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Subtotal</span>
-              <span className="text-gray-900">GH₵ {order?.subtotal?.toFixed(2)}</span>
+              <span className="text-gray-900">GH₵ {money(order?.subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Shipping</span>
-              <span className="text-gray-900">GH₵ {order?.shipping_total?.toFixed(2)}</span>
+              <span className="text-gray-900">GH₵ {money(order?.shipping_total)}</span>
             </div>
             {order?.discount_total > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Discount</span>
-                <span className="text-gray-700">-GH₵ {order?.discount_total?.toFixed(2)}</span>
+                <span className="text-gray-700">-GH₵ {money(order?.discount_total)}</span>
               </div>
             )}
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t border-gray-200">
             <span className="text-lg font-semibold text-gray-900">Total</span>
-            <span className="text-2xl font-bold text-gray-900">GH₵ {order?.total?.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-gray-900">GH₵ {money(order?.total)}</span>
           </div>
         </div>
 
@@ -266,7 +267,7 @@ export default function PaymentPage() {
             ) : (
               <>
                 <i className="ri-secure-payment-line mr-2"></i>
-                Pay GH₵ {order?.total?.toFixed(2)} with Mobile Money
+                Pay GH₵ {money(order?.total)} with Mobile Money
               </>
             )}
           </button>

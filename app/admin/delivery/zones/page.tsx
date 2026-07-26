@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useState, useEffect } from 'react';
 import DeliveryNav from '../DeliveryNav';
@@ -181,11 +182,11 @@ export default function ZonesPage() {
                             <div className="grid grid-cols-2 gap-3 mb-4">
                                 <div className="bg-gray-50 rounded-xl p-3">
                                     <p className="text-[10px] font-medium text-gray-500 uppercase">Standard Fee</p>
-                                    <p className="text-lg font-bold text-gray-900">GH₵ {zone.base_fee?.toFixed(2)}</p>
+                                    <p className="text-lg font-bold text-gray-900">GH₵ {money(zone.base_fee)}</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
                                     <p className="text-[10px] font-medium text-gray-700 uppercase">Express Fee</p>
-                                    <p className="text-lg font-bold text-gray-900">GH₵ {zone.express_fee?.toFixed(2)}</p>
+                                    <p className="text-lg font-bold text-gray-900">GH₵ {money(zone.express_fee)}</p>
                                 </div>
                             </div>
 

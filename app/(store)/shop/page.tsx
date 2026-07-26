@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -12,7 +13,7 @@ import PageHero from '@/components/PageHero';
 function ShopContent() {
   usePageTitle('Shop Products');
   const searchParams = useSearchParams();
-  const ghs = (amount: number) => `GH₵${amount.toLocaleString('en-GH')}`;
+  const ghs = (amount: number) => `GH₵${money(amount)}`;
 
   // State
   const [products, setProducts] = useState<any[]>([]);

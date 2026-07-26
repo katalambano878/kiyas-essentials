@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -204,7 +205,7 @@ export default function AdvancedSearch() {
                     <p className="font-semibold text-gray-900 text-sm">{product.name}</p>
                     <p className="text-xs text-gray-500">{product.category}</p>
                   </div>
-                  <p className="font-bold text-gray-900">GH₵{product.price}</p>
+                  <p className="font-bold text-gray-900">GH₵{money(product.price)}</p>
                 </Link>
               ))}
             </div>

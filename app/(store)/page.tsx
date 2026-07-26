@@ -1,4 +1,5 @@
 'use client';
+import { money } from '@/lib/format-money';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -472,7 +473,7 @@ export default function Home() {
                       </p>
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-sm font-bold text-gray-900">
-                          {`GH₵${Number(product.price || 0).toFixed(2)}`}
+                          {`GH₵${money(Number(product.price || 0))}`}
                         </span>
                         <Link
                           href={`/product/${product.slug}`}

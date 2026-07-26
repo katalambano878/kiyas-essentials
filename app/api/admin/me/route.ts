@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '@/lib/supabase-admin';
+import { isPlainPostgres } from '@/lib/db/mode';
 
 function getAccessToken(request: Request): string | null {
   const authHeader = request.headers.get('authorization');
@@ -31,15 +32,11 @@ function getAccessToken(request: Request): string | null {
 /**
  * GET /api/admin/me
  * Returns current admin/staff user and profile using the caller session token.
- * Uses the service role key so RLS doesn't block profile/role reads.
  */
 export async function GET(request: Request) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceKey) {
+  if (!isPlainPostgres()) {
     return NextResponse.json(
-      { error: 'Server misconfiguration: missing Supabase env vars' },
+      { error: 'Server misconfiguration: DATABASE_URL is not set' },
       { status: 503 }
     );
   }
@@ -49,16 +46,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  const supabase = createClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
   if (userError || !user) {
     return NextResponse.json({ error: 'Invalid or expired session' }, { status: 401 });
   }
 
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('role')
     .eq('id', user.id)
@@ -73,7 +66,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Not admin or staff' }, { status: 403 });
   }
 
-  const { data: roleConfig } = await supabase
+  const { data: roleConfig } = await supabaseAdmin
     .from('roles')
     .select('permissions, enabled')
     .eq('id', role)
