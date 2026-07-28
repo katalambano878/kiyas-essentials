@@ -10,7 +10,7 @@ export default function CustomerDetailsPage() {
     const router = useRouter();
     const params = useParams();
     const customerId = params.id as string;
-    
+
     const [customer, setCustomer] = useState<any>(null);
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -24,30 +24,78 @@ export default function CustomerDetailsPage() {
 
     const fetchCustomerData = async () => {
         try {
-            // 1. Fetch Profile
-            const { data: profile, error: profileError } = await supabase
-                .from('profiles')
+            // Customer list links use customers.id (incl. walk-in / guest rows),
+            // not profiles.id — load from customers first, then fall back to profiles.
+            let row: any = null;
+
+            const { data: customerRow, error: customerError } = await supabase
+                .from('customers')
                 .select('*')
                 .eq('id', customerId)
-                .single();
+                .maybeSingle();
 
-            if (profileError) throw profileError;
-
-            // 2. Fetch Orders
-            const { data: ordersData, error: ordersError } = await supabase
-                .from('orders')
-                .select('*')
-                .eq('user_id', customerId)
-                .order('created_at', { ascending: false });
-
-            if (ordersError && ordersError.code !== 'PGRST116') { // Ignore not found if simply no orders? No, select returns empty array usually
-                // Actually select returns empty array if no match, not error.
+            if (!customerError && customerRow) {
+                row = customerRow;
+            } else {
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', customerId)
+                    .maybeSingle();
+                if (profileError) throw profileError;
+                row = profile;
             }
 
-            setCustomer(profile);
-            setOrders(ordersData || []);
+            if (!row) {
+                setCustomer(null);
+                setOrders([]);
+                return;
+            }
+
+            // Orders may be linked by user_id, email, or phone (POS guests have no user_id)
+            let ordersData: any[] = [];
+            if (row.user_id) {
+                const { data } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('user_id', row.user_id)
+                    .order('created_at', { ascending: false });
+                ordersData = data || [];
+            }
+
+            if (ordersData.length === 0 && row.email) {
+                const { data } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('email', row.email)
+                    .order('created_at', { ascending: false });
+                ordersData = data || [];
+            }
+
+            if (ordersData.length === 0 && row.phone) {
+                const { data } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('phone', row.phone)
+                    .order('created_at', { ascending: false });
+                ordersData = data || [];
+            }
+
+            // Also try orders by profiles id when we loaded a profile row
+            if (ordersData.length === 0 && !row.user_id) {
+                const { data } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('user_id', customerId)
+                    .order('created_at', { ascending: false });
+                if (data?.length) ordersData = data;
+            }
+
+            setCustomer(row);
+            setOrders(ordersData);
         } catch (err) {
             console.error('Error fetching customer:', err);
+            setCustomer(null);
         } finally {
             setLoading(false);
         }
@@ -57,6 +105,8 @@ export default function CustomerDetailsPage() {
     if (!customer) return <div className="p-8 text-center text-red-500">Customer not found</div>;
 
     const totalSpent = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const displayName = customer.full_name || [customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'No Name';
+    const initial = displayName.charAt(0) || customer.email?.charAt(0)?.toUpperCase() || '?';
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -67,21 +117,23 @@ export default function CustomerDetailsPage() {
                         <i className="ri-arrow-left-line text-xl"></i>
                     </Link>
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-900 text-2xl font-bold">
-                        {customer.full_name?.charAt(0) || customer.email.charAt(0).toUpperCase()}
+                        {initial}
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">{customer.full_name || 'No Name'}</h1>
-                        <p className="text-gray-500">{customer.email}</p>
+                        <h1 className="text-3xl font-bold text-gray-900">{displayName}</h1>
+                        <p className="text-gray-500">{customer.email || 'No email'}</p>
                     </div>
                 </div>
                 <div className="flex space-x-3">
-                    <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 cursor-pointer">
-                        <i className="ri-mail-send-line mr-2"></i>
-                        Send Email
-                    </button>
-                    <button className="px-4 py-2 bg-gray-700 text-white rounded-lg font-bold hover:bg-gray-900 cursor-pointer">
-                        Edit Customer
-                    </button>
+                    {customer.email && (
+                        <a
+                            href={`mailto:${customer.email}`}
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+                        >
+                            <i className="ri-mail-send-line mr-2"></i>
+                            Send Email
+                        </a>
+                    )}
                 </div>
             </div>
 
@@ -130,7 +182,9 @@ export default function CustomerDetailsPage() {
                             {orders.map(order => (
                                 <tr key={order.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 text-sm font-medium text-gray-700">
-                                        <Link href={`/admin/orders/${order.id}`}>#{order.id.slice(0, 8)}</Link>
+                                        <Link href={`/admin/orders/${order.id}`}>
+                                            #{order.order_number || order.id.slice(0, 8)}
+                                        </Link>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-600">
                                         {new Date(order.created_at).toLocaleDateString()}
@@ -141,7 +195,7 @@ export default function CustomerDetailsPage() {
                                                 order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                                                     order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                                                         order.status === 'dispatched_to_rider' ? 'bg-indigo-100 text-indigo-800' : 'bg-blue-100 text-blue-800'}`}>
-                                            {order.status === 'dispatched_to_rider' ? 'Dispatched To Rider' : order.status.replace(/_/g, ' ')}
+                                            {order.status === 'dispatched_to_rider' ? 'Dispatched To Rider' : String(order.status || '').replace(/_/g, ' ')}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm font-bold text-gray-900">

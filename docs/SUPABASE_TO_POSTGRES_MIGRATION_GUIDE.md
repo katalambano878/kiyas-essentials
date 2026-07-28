@@ -4,7 +4,9 @@
 **Repo:** `katalambano878/kiyas-essentials`  
 **Local folder:** `websites/kiyas`  
 **Branch:** `staging/plain-postgres`  
-**Coolify:** not created yet (needs owner UI / staging app)  
+**Coolify:** `kiyas-app` (`jtwjvhhndehujicj3h54zqec`) — production  
+**Production:** https://kiyasessentials.store (also www + sslip fallback)  
+
 
 See also: store hardening playbook in the big-vps workspace (`STORE_HARDENING_PLAYBOOK.md`).
 
@@ -25,13 +27,15 @@ Also required: `AUTH_JWT_SECRET` / `JWT_SECRET`, `NEXT_PUBLIC_APP_URL`, `NEXT_PU
 - [x] `images.unoptimized: true`; drop `*.supabase.co` / `via.placeholder.com` remotePatterns
 - [x] Phase B: money sweep, payment-reminders → `supabaseAdmin`, OrderHistory Track/Reorder/Invoice/Help
 - [x] UUID `id` defaults migration: `supabase/migrations/20260726170000_uuid_id_defaults.sql` (run as DB owner after restore — see playbook §1a)
-- [ ] Coolify staging app + `fleet db provision` + first deploy
-- [ ] Place test order after UUID defaults applied
+- [x] Coolify prod app + `store_kiyas` + deploy
+- [x] Custom domain cutover (Jul 2026): FQDN + Traefik labels + env → `kiyasessentials.store`
+- [x] UUID `id` defaults present on orders/order_items/customers/products
+- [ ] Place test order on production
 
-## Verify (once staging exists)
+## Verify
 
 ```bash
-BASE=https://<kiyas-staging-host>
+BASE=https://kiyasessentials.store
 curl -s -o /dev/null -w "%{http_code}\n" "$BASE/"
 curl -s -o /dev/null -w "%{http_code}\n" "$BASE/shop"
 curl -s "$BASE/service-worker.js" | head -n 3

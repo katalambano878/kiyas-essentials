@@ -120,22 +120,30 @@ export async function POST(request: Request) {
     const { error: itemsError } = await supabaseAdmin.from('order_items').insert(orderItems);
     if (itemsError) {
       console.error('POS order_items insert error:', itemsError);
+      // Roll back orphan order so we don't leave unpaid shell rows
+      await supabaseAdmin.from('orders').delete().eq('id', order.id);
       return NextResponse.json({ error: itemsError.message }, { status: 500 });
     }
 
     if (mark_paid && (payment_status === 'paid' || payment_method === 'cash' || payment_method === 'card')) {
-      try {
-        await supabaseAdmin.rpc('mark_order_paid', {
-          order_ref: order_number,
-          moolre_ref: `POS-${(payment_method || 'cash').toUpperCase()}-${Date.now()}`,
-        });
-        // POS sales are fulfilled immediately — mark as completed
-        await supabaseAdmin
-          .from('orders')
-          .update({ status: 'completed' })
-          .eq('order_number', order_number);
-      } catch (e) {
-        console.error('mark_order_paid error:', e);
+      const { error: paidError } = await supabaseAdmin.rpc('mark_order_paid', {
+        order_ref: order_number,
+        moolre_ref: `POS-${(payment_method || 'cash').toUpperCase()}-${Date.now()}`,
+      });
+      if (paidError) {
+        console.error('mark_order_paid error:', paidError);
+        return NextResponse.json(
+          { error: paidError.message || 'Failed to mark order paid / reduce stock', order },
+          { status: 500 }
+        );
+      }
+      // POS sales are fulfilled immediately — mark as completed
+      const { error: statusError } = await supabaseAdmin
+        .from('orders')
+        .update({ status: 'completed' })
+        .eq('order_number', order_number);
+      if (statusError) {
+        console.error('POS status update error:', statusError);
       }
     }
 

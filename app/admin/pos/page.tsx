@@ -393,23 +393,35 @@ export default function POSPage() {
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
 
-            const { data } = await supabase
+            // Plain-PG compat does not support metadata->>… filters — fetch today's
+            // orders and filter POS sales in app code.
+            const { data, error } = await supabase
                 .from('orders')
-                .select('total, payment_method, payment_status')
-                .gte('created_at', todayStart.toISOString())
-                .eq('metadata->>pos_sale', 'true');
+                .select('total, payment_method, payment_status, metadata')
+                .gte('created_at', todayStart.toISOString());
+
+            if (error) {
+                console.error('Daily summary fetch error:', error);
+                return;
+            }
 
             if (data) {
-                const paid = data.filter(o => o.payment_status === 'paid');
+                const paid = data.filter(
+                    (o: any) =>
+                        o.payment_status === 'paid' &&
+                        (o.metadata?.pos_sale === true || o.metadata?.pos_sale === 'true')
+                );
                 setDailySummary({
-                    totalSales: paid.reduce((s, o) => s + Number(o.total), 0),
+                    totalSales: paid.reduce((s: number, o: any) => s + Number(o.total), 0),
                     orderCount: paid.length,
-                    cashSales: paid.filter(o => o.payment_method === 'cash').reduce((s, o) => s + Number(o.total), 0),
-                    cardSales: paid.filter(o => o.payment_method === 'card').reduce((s, o) => s + Number(o.total), 0),
-                    momoSales: paid.filter(o => o.payment_method === 'moolre').reduce((s, o) => s + Number(o.total), 0),
+                    cashSales: paid.filter((o: any) => o.payment_method === 'cash').reduce((s: number, o: any) => s + Number(o.total), 0),
+                    cardSales: paid.filter((o: any) => o.payment_method === 'card').reduce((s: number, o: any) => s + Number(o.total), 0),
+                    momoSales: paid.filter((o: any) => o.payment_method === 'moolre').reduce((s: number, o: any) => s + Number(o.total), 0),
                 });
             }
-        } catch {}
+        } catch (e) {
+            console.error('Daily summary error:', e);
+        }
     };
 
     // ─── Cart Functions ─────────────────────────────────────────────────────
@@ -722,8 +734,17 @@ export default function POSPage() {
                 setCompletedOrder({ id: order.id, orderNumber, total: grandTotal, items: cart, receiptData });
                 setLastReceipt(receiptData);
                 try { localStorage.setItem(LAST_RECEIPT_KEY, JSON.stringify(receiptData)); } catch {}
+                // Decrement local stock so badges stay accurate until next refetch
+                setProducts((prev) =>
+                    prev.map((p) => {
+                        const sold = cart.find((c) => c.id === p.id);
+                        if (!sold) return p;
+                        return { ...p, quantity: Math.max(0, p.quantity - sold.cartQuantity) };
+                    })
+                );
                 setCart([]);
                 setOrderDiscount(0);
+                setAmountTendered('');
                 playSound('success');
                 fetchDailySummary();
 
@@ -1160,10 +1181,14 @@ export default function POSPage() {
                                     </h2>
                                     <p className="text-gray-500 mt-1">Order #{completedOrder.orderNumber}</p>
 
-                                    {!completedOrder.paymentPending && paymentMethod === 'cash' && changeDue > 0 && (
+                                    {!completedOrder.paymentPending &&
+                                        paymentMethod === 'cash' &&
+                                        (completedOrder.receiptData?.change ?? 0) > 0 && (
                                         <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-4">
                                             <p className="text-sm text-gray-900">Change Due</p>
-                                            <p className="text-3xl font-bold text-gray-800">GH₵{money(changeDue)}</p>
+                                            <p className="text-3xl font-bold text-gray-800">
+                                                GH₵{money(completedOrder.receiptData?.change ?? 0)}
+                                            </p>
                                         </div>
                                     )}
 

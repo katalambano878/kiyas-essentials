@@ -46,7 +46,12 @@ export default function AdminReviewsPage() {
           title: r.title,
           comment: r.content,
           date: new Date(r.created_at).toLocaleDateString(),
-          status: r.status || 'Pending',
+          status: (() => {
+            const s = String(r.status || 'pending').toLowerCase();
+            if (s === 'approved') return 'Approved';
+            if (s === 'rejected') return 'Rejected';
+            return 'Pending';
+          })(),
           helpful: r.helpful || 0
         }));
         setReviews(formatted);
@@ -106,8 +111,9 @@ export default function AdminReviewsPage() {
     if (selectedReviews.length === 0) return;
     try {
       let newStatus = '';
-      if (action === 'Approve') newStatus = 'Approved';
-      if (action === 'Reject') newStatus = 'Rejected';
+      // DB enum is lowercase: pending | approved | rejected
+      if (action === 'Approve') newStatus = 'approved';
+      if (action === 'Reject') newStatus = 'rejected';
 
       if (newStatus) {
         const { error } = await supabase
