@@ -67,7 +67,7 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
                   *,
                   categories(name),
                   product_variants(*),
-                  product_images(url, position, alt_text, media_type)
+                  product_images(url, position, alt_text)
                 `);
               const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
               if (isUUID) query = query.or(`id.eq.${slug},slug.eq.${slug}`);

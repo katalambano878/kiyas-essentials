@@ -27,7 +27,7 @@ export async function GET(
         *,
         categories(name, slug),
         product_variants(id, name, price, quantity, option1, option2, image_url, metadata),
-        product_images(url, position, alt_text, media_type)
+        product_images(url, position, alt_text)
       `)
       .eq('status', 'active');
 
@@ -40,7 +40,13 @@ export async function GET(
     const { data: productData, error } = await query.single();
 
     if (error || !productData) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      if (error) {
+        console.error('[Storefront API] Product by slug query error:', error);
+      }
+      return NextResponse.json(
+        { error: 'Product not found', detail: error?.message },
+        { status: 404 }
+      );
     }
 
     // Stable display order: by name (no sort_order column on product_variants)
