@@ -26,7 +26,7 @@ export async function GET(
       .select(`
         *,
         categories(name, slug),
-        product_variants(id, name, price, quantity, option1, option2, image_url, metadata, sort_order),
+        product_variants(id, name, price, quantity, option1, option2, image_url, metadata),
         product_images(url, position, alt_text, media_type)
       `)
       .eq('status', 'active');
@@ -43,9 +43,11 @@ export async function GET(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // Sort variants by sort_order
+    // Stable display order: by name (no sort_order column on product_variants)
     if (productData.product_variants) {
-      productData.product_variants.sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      productData.product_variants.sort((a: any, b: any) =>
+        String(a.name || '').localeCompare(String(b.name || ''))
+      );
     }
 
     return NextResponse.json(productData, {

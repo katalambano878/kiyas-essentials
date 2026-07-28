@@ -85,10 +85,10 @@ export default function ProductDetailClient({ slug }: { slug: string }) {
         }
 
         // Transform product data
-        // Map variant colors from option2, and extract color_hex from metadata
+        // Color may live in option1 or option2 depending on how admin saved variants
         const rawVariants = (dataToTransform.product_variants || []).map((v: any) => ({
           ...v,
-          color: v.option2 || '',
+          color: v.option2 || v.option1 || '',
           colorHex: v.metadata?.color_hex || ''
         }));
 
