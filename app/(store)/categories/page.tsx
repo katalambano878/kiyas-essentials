@@ -33,7 +33,7 @@ export default async function CategoriesPage() {
     const style = palette[i % palette.length];
     return {
       ...c,
-      image: resolveCategoryImage(c.slug, c.image_url, i),
+      image: resolveCategoryImage(c.slug, c.image_url, i, c.name),
       color: style.color,
       icon: style.icon,
       // Optional: Fetch product count if needed, currently skipping for performance/simplicity

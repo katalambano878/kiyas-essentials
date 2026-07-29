@@ -4,7 +4,6 @@ import { money } from '@/lib/format-money';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
 import { useCMS } from '@/context/CMSContext';
 import ProductCard, {
   type ColorVariant,
@@ -18,8 +17,8 @@ import {
   DEFAULT_SITE_TAGLINE,
 } from '@/lib/site-defaults';
 import {
-  categoryImageUrl,
-  CATEGORY_COVER_BY_SLUG,
+  resolveCategoryImage,
+  resolveCategoryImagePosition,
   DEFAULT_CATEGORY_STYLES,
 } from '@/lib/category-covers';
 
@@ -39,41 +38,28 @@ export default function Home() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch independently so a category filter failure never blanks products
-        const productsPromise = supabase
-          .from('products')
-          .select('*, product_variants(*), product_images(*)')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(12);
-
-        const categoriesPromise = supabase
-          .from('categories')
-          .select('id, name, slug, parent_id, position, metadata, image_url')
-          .eq('status', 'active')
-          .is('parent_id', null)
-          .order('position', { ascending: true })
-          .limit(12);
-
-        const [productsResult, categoriesResult] = await Promise.all([
-          productsPromise,
-          categoriesPromise,
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch('/api/storefront/products?limit=12'),
+          fetch('/api/storefront/categories'),
         ]);
 
-        if (productsResult.error) {
-          console.error('Error fetching products:', productsResult.error);
+        if (productsRes.ok) {
+          const products = await productsRes.json();
+          setFeaturedProducts(Array.isArray(products) ? products : []);
         } else {
-          setFeaturedProducts(productsResult.data || []);
+          console.error('Error fetching products:', productsRes.status);
         }
 
-        if (categoriesResult.error) {
-          console.error('Error fetching categories:', categoriesResult.error);
-        } else {
-          const rows = categoriesResult.data || [];
-          const featured = rows.filter(
+        if (categoriesRes.ok) {
+          const rows = await categoriesRes.json();
+          const list = Array.isArray(rows) ? rows : [];
+          const roots = list.filter((c: any) => !c.parent_id);
+          const featured = roots.filter(
             (c: any) => c?.metadata?.featured === true || c?.metadata?.featured === 'true'
           );
-          setFeaturedCategories((featured.length > 0 ? featured : rows).slice(0, 4));
+          setFeaturedCategories((featured.length > 0 ? featured : roots).slice(0, 4));
+        } else {
+          console.error('Error fetching categories:', categoriesRes.status);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -131,15 +117,10 @@ export default function Home() {
   const popularProducts = featuredProducts.slice(0, 6);
   const latestProducts = featuredProducts;
   const defaultCategoryStyles = DEFAULT_CATEGORY_STYLES;
-  const categoryCoverBySlug = CATEGORY_COVER_BY_SLUG;
   const fallbackCategories = [
     { name: 'Beauty & Personal Care', slug: 'beauty-personal-care', metadata: {} },
     { name: 'Electronics & Gadgets', slug: 'electronics-gadgets', metadata: {} },
-    {
-      name: 'Home & Lifestyle',
-      slug: 'home-lifestyle',
-      metadata: {},
-    },
+    { name: 'Home & Lifestyle', slug: 'home-lifestyle', metadata: {} },
     { name: 'Fashion & Accessories', slug: 'fashion-accessories', metadata: {} },
   ];
   const vibeCategories = (featuredCategories.length > 0
@@ -149,23 +130,21 @@ export default function Home() {
     .slice(0, 4)
     .map((category, index) => {
       const style = defaultCategoryStyles[index % defaultCategoryStyles.length];
-      const slugKey = String(category.slug || '').toLowerCase();
-      const cover = slugKey ? categoryCoverBySlug[slugKey] : undefined;
-      const metaImage =
-        categoryImageUrl(category.image_url) ||
-        categoryImageUrl(category.metadata?.image) ||
-        categoryImageUrl(category.metadata?.cover_image);
       return {
         ...category,
         chip: category.metadata?.chip || style.chip,
         icon: category.metadata?.icon || style.icon,
         color: category.metadata?.color || style.color,
-        image: metaImage || cover?.image || style.image,
+        image: resolveCategoryImage(
+          category.slug,
+          category.image_url || category.metadata?.image || category.metadata?.cover_image,
+          index,
+          category.name
+        ),
         imagePosition:
           category.metadata?.image_position ||
           category.metadata?.imagePosition ||
-          cover?.imagePosition ||
-          style.imagePosition,
+          resolveCategoryImagePosition(category.slug, index),
       };
     });
 
@@ -412,6 +391,12 @@ export default function Home() {
                   }
                 }
 
+                const images = Array.isArray(product.product_images)
+                  ? [...product.product_images].sort(
+                      (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
+                    )
+                  : [];
+
                 return (
                   <ProductCard
                     key={product.id}
@@ -420,10 +405,7 @@ export default function Home() {
                     name={product.name}
                     price={product.price}
                     originalPrice={product.compare_at_price}
-                    image={
-                      product.product_images?.[0]?.url ||
-                      'https://via.placeholder.com/400x500'
-                    }
+                    image={images[0]?.url || '/logo.png'}
                     rating={product.rating_avg || 5}
                     reviewCount={product.review_count || 0}
                     badge={product.featured ? 'Featured' : 'Trending'}

@@ -6,7 +6,6 @@ import { useSearchParams } from 'next/navigation';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import ProductCard, { type ColorVariant } from '@/components/ProductCard';
 import { getColorHex } from '@/components/ProductCard';
-import { supabase } from '@/lib/supabase';
 import { cachedQuery } from '@/lib/query-cache';
 import PageHero from '@/components/PageHero';
 
@@ -56,127 +55,102 @@ function ShopContent() {
     fetchCategories();
   }, []);
 
-  // Fetch Products
+  // Fetch Products via storefront API (plain-Postgres safe; avoids broken foreignTable order)
   useEffect(() => {
     async function fetchProducts() {
       setLoading(true);
       try {
-        const search = searchParams.get('search');
+        const search = searchParams.get('search') || '';
 
-        const cacheKey = `shop:${selectedCategory}:${search}:${priceRange.join('-')}:${selectedRating}:${sortBy}:${page}`;
-        const { data, count, error } = await cachedQuery<{ data: any; count: any; error: any }>(
+        let categorySlugs = 'all';
+        if (selectedCategory !== 'all') {
+          const categoryObj = categories.find((c) => c.slug === selectedCategory);
+          if (categoryObj) {
+            const childSlugs = categories
+              .filter((c) => c.parent_id === categoryObj.id)
+              .map((c) => c.slug)
+              .filter(Boolean);
+            categorySlugs = [selectedCategory, ...childSlugs].join(',');
+          } else {
+            categorySlugs = selectedCategory;
+          }
+        }
+
+        const params = new URLSearchParams({
+          search,
+          categorySlugs,
+          priceMin: String(priceRange[0]),
+          priceMax: String(priceRange[1]),
+          rating: String(selectedRating),
+          sortBy,
+          page: String(page),
+          limit: String(productsPerPage),
+        });
+
+        const cacheKey = `shop-api:${params.toString()}`;
+        const json = await cachedQuery<{ data: any[]; count: number }>(
           cacheKey,
           async () => {
-            let query = supabase
-              .from('products')
-              .select(`
-                *,
-                categories!inner(name, slug),
-                product_images!product_id(url, position),
-                product_variants(id, name, price, quantity, option1, option2, image_url)
-              `, { count: 'exact' })
-              .order('position', { foreignTable: 'product_images', ascending: true });
-
-            if (search) {
-              query = query.ilike('name', `%${search}%`);
-            }
-
-            if (selectedCategory !== 'all') {
-              const categoryObj = categories.find(c => c.slug === selectedCategory);
-
-              if (categoryObj) {
-                const targetSlugs = [selectedCategory];
-                const childSlugs = categories
-                  .filter(c => c.parent_id === categoryObj.id)
-                  .map(c => c.slug);
-                targetSlugs.push(...childSlugs);
-                query = query.in('categories.slug', targetSlugs);
-              } else {
-                query = query.eq('categories.slug', selectedCategory);
-              }
-            }
-
-            if (priceRange[1] < 5000) {
-              query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
-            }
-
-            if (selectedRating > 0) {
-              query = query.gte('rating_avg', selectedRating);
-            }
-
-            switch (sortBy) {
-              case 'price-low':
-                query = query.order('price', { ascending: true });
-                break;
-              case 'price-high':
-                query = query.order('price', { ascending: false });
-                break;
-              case 'rating':
-                query = query.order('rating_avg', { ascending: false });
-                break;
-              case 'new':
-                query = query.order('created_at', { ascending: false });
-                break;
-              case 'popular':
-              default:
-                query = query.order('created_at', { ascending: false });
-                break;
-            }
-
-            const from = (page - 1) * productsPerPage;
-            const to = from + productsPerPage - 1;
-            query = query.range(from, to);
-
-            return query as any;
+            const res = await fetch(`/api/storefront/shop?${params.toString()}`);
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || 'Failed to fetch products');
+            return { data: body.data || [], count: body.count || 0 };
           },
           2 * 60 * 1000
         );
 
-        if (error) throw error;
-
-        if (data) {
-          const formattedProducts = data.map((p: any) => {
-            const variants = p.product_variants || [];
-            const hasVariants = variants.length > 0;
-            const minVariantPrice = hasVariants ? Math.min(...variants.map((v: any) => v.price || p.price)) : undefined;
-            const totalVariantStock = hasVariants ? variants.reduce((sum: number, v: any) => sum + (v.quantity || 0), 0) : 0;
-            const effectiveStock = hasVariants ? totalVariantStock : p.quantity;
-            const colorVariants: ColorVariant[] = [];
-            const seenColors = new Set<string>();
-            for (const v of variants) {
-              const colorName = v.option2;
-              if (colorName && !seenColors.has(colorName.toLowerCase().trim())) {
-                const hex = getColorHex(colorName);
-                if (hex) {
-                  seenColors.add(colorName.toLowerCase().trim());
-                  colorVariants.push({ name: colorName.trim(), hex });
-                }
+        const formattedProducts = (json.data || []).map((p: any) => {
+          const variants = p.product_variants || [];
+          const hasVariants = variants.length > 0;
+          const minVariantPrice = hasVariants
+            ? Math.min(...variants.map((v: any) => v.price || p.price))
+            : undefined;
+          const totalVariantStock = hasVariants
+            ? variants.reduce((sum: number, v: any) => sum + (v.quantity || 0), 0)
+            : 0;
+          const effectiveStock = hasVariants ? totalVariantStock : p.quantity;
+          const colorVariants: ColorVariant[] = [];
+          const seenColors = new Set<string>();
+          for (const v of variants) {
+            const colorName = v.option2 || v.option1;
+            if (colorName && !seenColors.has(colorName.toLowerCase().trim())) {
+              const hex = getColorHex(colorName);
+              if (hex) {
+                seenColors.add(colorName.toLowerCase().trim());
+                colorVariants.push({ name: colorName.trim(), hex });
               }
             }
-            return {
-              id: p.id,           // Product UUID for cart/orders
-              slug: p.slug,       // Slug for navigation
-              name: p.name,
-              price: p.price,
-              originalPrice: p.compare_at_price,
-              image: p.product_images?.[0]?.url || 'https://via.placeholder.com/800x800?text=No+Image',
-              rating: p.rating_avg || 0,
-              reviewCount: 0, // Need to implement reviews relation
-              badge: p.compare_at_price > p.price ? 'Sale' : undefined,
-              inStock: effectiveStock > 0,
-              maxStock: effectiveStock || 50,
-              moq: p.moq || 1,
-              category: p.categories?.name,
-              hasVariants,
-              minVariantPrice,
-              colorVariants,
-            };
-          });
-          setProducts(formattedProducts);
-          setTotalProducts(count || 0);
-        }
+          }
+          const images = Array.isArray(p.product_images)
+            ? [...p.product_images].sort(
+                (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
+              )
+            : [];
+          return {
+            id: p.id,
+            slug: p.slug,
+            name: p.name,
+            price: p.price,
+            originalPrice: p.compare_at_price,
+            image: images[0]?.url || '/logo.png',
+            rating: p.rating_avg || 0,
+            reviewCount: 0,
+            badge: p.compare_at_price > p.price ? 'Sale' : undefined,
+            inStock: effectiveStock > 0,
+            maxStock: effectiveStock || 50,
+            moq: p.moq || 1,
+            category: p.categories?.name,
+            hasVariants,
+            minVariantPrice,
+            colorVariants,
+          };
+        });
+        setProducts(formattedProducts);
+        setTotalProducts(json.count || 0);
       } catch (err) {
         console.error('Error fetching products:', err);
+        setProducts([]);
+        setTotalProducts(0);
       } finally {
         setLoading(false);
       }
