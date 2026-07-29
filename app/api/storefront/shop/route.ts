@@ -25,8 +25,8 @@ const SEARCH_STOP_WORDS = new Set([
  * Query params: search, categorySlugs (comma-separated or 'all'), priceMin, priceMax, rating, sortBy, page, limit
  */
 export async function GET(request: Request) {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 503 });
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+    return NextResponse.json({ error: 'Server misconfiguration: DATABASE_URL is not set' }, { status: 503 });
   }
 
   const { searchParams } = new URL(request.url);

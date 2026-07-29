@@ -8,9 +8,9 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
  * for the storefront (e.g. maintenance mode, AI chat).
  */
 export async function GET() {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
     return NextResponse.json(
-      { error: 'Server misconfiguration' },
+      { error: 'Server misconfiguration: DATABASE_URL is not set' },
       { status: 503 },
     );
   }

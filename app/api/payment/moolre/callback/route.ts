@@ -76,13 +76,13 @@ export async function POST(req: Request) {
         const expectedSecret = process.env.MOOLRE_CALLBACK_SECRET;
         if (expectedSecret) {
             if (!body.secret || body.secret !== expectedSecret) {
-                // Log the mismatch clearly but DO NOT reject — amount check below provides security.
-                // A hard reject here causes all payments to silently fail if the secret is misconfigured.
-                console.warn('[Callback] SECRET MISMATCH (non-blocking) — expected:', expectedSecret.substring(0, 8) + '...', '| received:', String(body.secret || 'NONE').substring(0, 8) + '...');
-                console.warn('[Callback] Continuing despite secret mismatch. Update MOOLRE_CALLBACK_SECRET in Vercel to fix this warning.');
-            } else {
-                console.log('[Callback] Secret verified OK');
+                console.warn(
+                    '[Callback] SECRET MISMATCH — rejecting. received prefix:',
+                    String(body.secret || 'NONE').substring(0, 8)
+                );
+                return NextResponse.json({ success: false, message: 'Invalid callback secret' }, { status: 401 });
             }
+            console.log('[Callback] Secret verified OK');
         } else {
             console.warn('[Callback] MOOLRE_CALLBACK_SECRET not set — amount check is the only security layer.');
         }
@@ -223,15 +223,19 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, message: 'Payment verified and Order Updated' });
 
         } else {
-            // Payment failed
+            // Payment failed — never overwrite an already-paid order
             console.log(`[Callback] Payment FAILED for ${merchantOrderRef} | Status: ${apiStatus} | TX: ${txStatus}`);
 
-            // Fetch existing metadata first so we don't wipe it
             const { data: failedOrder } = await supabaseAdmin
                 .from('orders')
-                .select('metadata')
+                .select('metadata, payment_status')
                 .eq('order_number', merchantOrderRef)
                 .single();
+
+            if (failedOrder?.payment_status === 'paid') {
+                console.warn('[Callback] Ignoring delayed failure for already-paid order:', merchantOrderRef);
+                return NextResponse.json({ success: true, message: 'Order already paid; failure ignored' });
+            }
 
             await supabaseAdmin
                 .from('orders')

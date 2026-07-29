@@ -14,8 +14,8 @@ export async function GET(
     return NextResponse.json({ error: 'Slug required' }, { status: 400 });
   }
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 503 });
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+    return NextResponse.json({ error: 'Server misconfiguration: DATABASE_URL is not set' }, { status: 503 });
   }
 
   try {

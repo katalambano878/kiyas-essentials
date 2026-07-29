@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
                 supabaseAdmin.from('orders')
                     .select('id', { count: 'exact' })
                     .in('status', ['processing', 'shipped'])
-                    .not('id', 'in', `(${(await supabaseAdmin.from('delivery_assignments').select('order_id').not('status', 'in', '("failed","returned")')).data?.map(a => a.order_id).join(',') || '00000000-0000-0000-0000-000000000000'})`),
+                    .not('id', 'in', `(${((await supabaseAdmin.from('delivery_assignments').select('order_id').not('status', 'in', '("failed","returned")')).data?.map(a => a.order_id) || []).map((id: string) => `"${id}"`).join(',') || '"00000000-0000-0000-0000-000000000000"'})`),
                 supabaseAdmin.from('delivery_zones').select('id', { count: 'exact' }).eq('is_active', true),
             ]);
 
@@ -109,7 +109,8 @@ export async function GET(req: NextRequest) {
                 .order('created_at', { ascending: true });
 
             if (excludeIds.length > 0) {
-                query = query.not('id', 'in', `(${excludeIds.join(',')})`);
+                // Quoted UUIDs keep PostgREST-style parsers and the PG compat shim aligned
+                query = query.not('id', 'in', `(${excludeIds.map((id) => `"${id}"`).join(',')})`);
             }
 
             const { data } = await query;

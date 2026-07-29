@@ -8,7 +8,7 @@
 **Production:** https://kiyasessentials.store (also www + sslip fallback)  
 
 
-See also: store hardening playbook in the big-vps workspace (`STORE_HARDENING_PLAYBOOK.md`).
+See also: store hardening playbook in the big-vps workspace (`STORE_HARDENING_PLAYBOOK.md`), plus repo-root `FULL_SYSTEM_AUDIT.md`, `SUPABASE_TO_POSTGRES_MIGRATION_REPORT.md`, and `PAYMENT_AND_CALLBACK_AUDIT.md`.
 
 ## Env cutover trio (set together in Coolify)
 

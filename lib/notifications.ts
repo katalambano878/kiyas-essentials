@@ -146,23 +146,31 @@ export async function sendSMS({ to, message }: { to: string; message: string }) 
 
     try {
         console.log(`[SMS] Sending to ${maskPhone(recipient)}`);
-        const response = await fetch('https://api.moolre.com/open/sms/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-VASKEY': smsVasKey
-            },
-            body: JSON.stringify({
-                type: 1,
-                senderid: process.env.SMS_SENDER_ID || 'Store',
-                messages: [
-                    {
-                        recipient: recipient,
-                        message: message
-                    }
-                ]
-            })
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        let response: Response;
+        try {
+            response = await fetch('https://api.moolre.com/open/sms/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-VASKEY': smsVasKey
+                },
+                body: JSON.stringify({
+                    type: 1,
+                    senderid: process.env.SMS_SENDER_ID || 'Store',
+                    messages: [
+                        {
+                            recipient: recipient,
+                            message: message
+                        }
+                    ]
+                }),
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
 
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {

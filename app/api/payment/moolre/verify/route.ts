@@ -91,15 +91,23 @@ export async function POST(req: Request) {
             try {
                 console.log('[Verify] Querying Moolre with ref:', ref);
 
-                const checkResponse = await fetch('https://api.moolre.com/embed/status', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-USER': process.env.MOOLRE_API_USER,
-                        'X-API-PUBKEY': process.env.MOOLRE_API_PUBKEY
-                    },
-                    body: JSON.stringify({ externalref: ref })
-                });
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
+                let checkResponse: Response;
+                try {
+                    checkResponse = await fetch('https://api.moolre.com/embed/status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-USER': process.env.MOOLRE_API_USER!,
+                            'X-API-PUBKEY': process.env.MOOLRE_API_PUBKEY!
+                        },
+                        body: JSON.stringify({ externalref: ref }),
+                        signal: controller.signal,
+                    });
+                } finally {
+                    clearTimeout(timeout);
+                }
 
                 const checkResult = await checkResponse.json();
                 console.log('[Verify] Moolre response for ref', ref, ':', JSON.stringify(checkResult));

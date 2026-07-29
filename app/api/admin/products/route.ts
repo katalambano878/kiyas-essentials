@@ -29,8 +29,8 @@ function getAccessToken(request: Request): string | null {
 }
 
 async function requireAdmin(request: Request): Promise<NextResponse | null> {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 503 });
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+    return NextResponse.json({ error: 'Server misconfiguration: DATABASE_URL is not set' }, { status: 503 });
   }
   const token = getAccessToken(request);
   if (!token) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

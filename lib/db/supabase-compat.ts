@@ -396,7 +396,7 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any; count: number
       } else if (f.kind === "notIn") {
         const raw = String(f.value).replace(/^\(|\)$/g, "").trim();
         if (!raw) { clauses.push("true"); continue; }
-        const vals = raw.split(",").map((s) => s.trim());
+        const vals = raw.split(",").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
         const ph = vals.map((v) => {
           params.push(v);
           return `$${params.length}`;
@@ -936,6 +936,25 @@ function createAuthApi() {
     },
     onAuthStateChange() {
       return { data: { subscription: { unsubscribe() {} } } };
+    },
+    admin: {
+      async createUser(attrs: {
+        email: string;
+        password: string;
+        email_confirm?: boolean;
+        user_metadata?: Record<string, unknown>;
+      }) {
+        const auth = await loadAuth();
+        const { session, user, error } = await auth.signUpWithPassword({
+          email: attrs.email,
+          password: attrs.password,
+          data: attrs.user_metadata,
+        });
+        if (error) {
+          return { data: { user: null }, error: { message: error } };
+        }
+        return { data: { user: user || session?.user || null }, error: null };
+      },
     },
   };
 }

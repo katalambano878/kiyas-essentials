@@ -103,15 +103,23 @@ export async function POST(req: Request) {
 
         console.log('[Payment] Initiating for order:', orderRef, '| Amount from DB:', amount, '| UniqueRef:', uniqueRef, '| Callback:', payload.callback);
 
-        const response = await fetch('https://api.moolre.com/embed/link', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-USER': process.env.MOOLRE_API_USER,
-                'X-API-PUBKEY': process.env.MOOLRE_API_PUBKEY
-            },
-            body: JSON.stringify(payload)
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        let response: Response;
+        try {
+            response = await fetch('https://api.moolre.com/embed/link', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-USER': process.env.MOOLRE_API_USER,
+                    'X-API-PUBKEY': process.env.MOOLRE_API_PUBKEY
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
 
         const result = await response.json();
         console.log('[Payment] Response status:', result.status, '| Has URL:', !!result.data?.authorization_url);
