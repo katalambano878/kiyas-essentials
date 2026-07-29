@@ -75,7 +75,6 @@ export async function PUT(
         url: typeof img.url === 'string' ? img.url : '',
         position: Number(img.position) ?? idx,
         alt_text: productName || (typeof img.alt_text === 'string' ? img.alt_text : null),
-        media_type: img.media_type === 'video' ? 'video' : 'image',
       })).filter((r: any) => r.url);
 
       if (rows.length > 0) {

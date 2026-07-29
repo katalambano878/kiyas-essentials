@@ -30,14 +30,14 @@ export default function AdminCouponsPage() {
         setCoupons(data.map((c: any) => ({
           id: c.id,
           code: c.code,
-          type: c.discount_type || 'Percentage', // Adjust key if needed (e.g. type)
-          value: c.discount_value || c.value || 0,
-          minPurchase: c.min_purchase_amount || 0,
-          usageLimit: c.usage_limit || null,
-          usedCount: c.times_used || 0,
+          type: c.type || 'percentage',
+          value: Number(c.value) || 0,
+          minPurchase: Number(c.minimum_purchase) || 0,
+          usageLimit: c.usage_limit ?? null,
+          usedCount: Number(c.usage_count) || 0,
           startDate: c.start_date ? new Date(c.start_date).toLocaleDateString() : 'N/A',
           endDate: c.end_date ? new Date(c.end_date).toLocaleDateString() : null,
-          status: isCouponActive(c) ? 'Active' : 'Expired' // Derive status
+          status: isCouponActive(c) ? 'Active' : 'Expired',
         })));
       }
     } catch (err) {
@@ -156,7 +156,11 @@ export default function AdminCouponsPage() {
                     </td>
                     <td className="py-4 px-4 text-gray-700">{coupon.type}</td>
                     <td className="py-4 px-4 font-semibold text-gray-900">
-                      {coupon.type === 'Percentage' ? `${coupon.value}%` : coupon.type === 'Fixed Amount' ? `GH₵ ${coupon.value}` : 'Free Shipping'}
+                      {coupon.type === 'percentage' || coupon.type === 'Percentage'
+                        ? `${coupon.value}%`
+                        : coupon.type === 'fixed_amount' || coupon.type === 'Fixed Amount'
+                          ? `GH₵ ${coupon.value}`
+                          : 'Free Shipping'}
                     </td>
                     <td className="py-4 px-4 text-gray-700 whitespace-nowrap">
                       {coupon.minPurchase > 0 ? `GH₵ ${money(coupon.minPurchase)}` : 'No minimum'}

@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       // POS sales are fulfilled immediately — mark as completed
       const { error: statusError } = await supabaseAdmin
         .from('orders')
-        .update({ status: 'completed' })
+        .update({ status: 'delivered' })
         .eq('order_number', order_number);
       if (statusError) {
         console.error('POS status update error:', statusError);

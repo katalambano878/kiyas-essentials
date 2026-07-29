@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
+function getAccessToken(request: Request): string | null {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7).trim();
+    const cookieHeader = request.headers.get('cookie') || '';
+    const match = cookieHeader.match(/\bsb-access-token=([^;]+)/);
+    if (match) return decodeURIComponent(match[1].trim());
+    const authCookie = cookieHeader
+        .split(';')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith('sb-') && (c.includes('-auth-token') || c.includes('auth')));
+    if (!authCookie) return null;
+    const value = authCookie.split('=').slice(1).join('=').trim();
+    const decoded = decodeURIComponent(value);
+    try {
+        const parsed = JSON.parse(decoded);
+        if (Array.isArray(parsed) && parsed[0]) return parsed[0];
+        if (parsed?.access_token) return parsed.access_token;
+        if (typeof parsed === 'string') return parsed;
+    } catch {
+        return decoded;
+    }
+    return null;
+}
+
 async function getAuthUser(req: NextRequest) {
-    const token = req.cookies.get('sb-access-token')?.value;
+    const token = getAccessToken(req);
     if (!token) return null;
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
     if (error || !user) return null;
