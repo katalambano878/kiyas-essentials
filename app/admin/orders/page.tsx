@@ -68,8 +68,11 @@ export default function AdminOrdersPage() {
     try {
       setLoading(true);
 
-      // Fetch orders via server-side API (bypasses RLS)
-      const res = await fetch('/api/admin/orders', { credentials: 'include' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/orders', {
+        credentials: 'include',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to fetch orders');
       const ordersData = json.orders;

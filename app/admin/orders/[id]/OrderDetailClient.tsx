@@ -54,7 +54,11 @@ export default function OrderDetailClient({ orderId }: OrderDetailClientProps) {
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}`, { credentials: 'include' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}`, {
+        credentials: 'include',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Order not found');
       const data = json.order;

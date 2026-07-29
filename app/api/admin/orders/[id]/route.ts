@@ -53,12 +53,36 @@ const ORDER_SELECT = `
     quantity,
     unit_price,
     total_price,
-    metadata,
-    products (
-      product_images (url)
-    )
+    metadata
   )
 `;
+
+async function attachProductImages(order: Record<string, unknown> & { order_items?: Array<{ product_id?: string | null }> }) {
+  const items = order.order_items || [];
+  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
+  if (productIds.length === 0) return order;
+
+  const { data: images } = await supabaseAdmin
+    .from('product_images')
+    .select('product_id, url')
+    .in('product_id', productIds)
+    .order('position', { ascending: true });
+
+  const byProduct = new Map<string, { url: string }[]>();
+  for (const img of images || []) {
+    const list = byProduct.get(img.product_id) || [];
+    list.push({ url: img.url });
+    byProduct.set(img.product_id, list);
+  }
+
+  order.order_items = items.map((item) => ({
+    ...item,
+    products: item.product_id
+      ? { product_images: byProduct.get(item.product_id) || [] }
+      : null,
+  }));
+  return order;
+}
 
 export async function GET(
   request: Request,
@@ -71,23 +95,33 @@ export async function GET(
 
   try {
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    let data: any = null;
+    let data: Record<string, unknown> | null = null;
+    let queryError: { message?: string } | null = null;
 
     if (isUUID) {
       const { data: d, error } = await supabaseAdmin
         .from('orders').select(ORDER_SELECT).eq('id', id).single();
-      if (!error) data = d;
+      if (error) queryError = error;
+      else data = d;
     }
 
     if (!data) {
       const { data: d, error } = await supabaseAdmin
         .from('orders').select(ORDER_SELECT).eq('order_number', id).single();
-      if (error) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      if (error) {
+        if (queryError) {
+          console.error('Admin order detail query error:', queryError.message, error.message);
+          return NextResponse.json({ error: queryError.message || 'Failed to load order' }, { status: 500 });
+        }
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      }
       data = d;
     }
 
-    return NextResponse.json({ order: data });
+    const order = await attachProductImages(data);
+    return NextResponse.json({ order });
   } catch (e: any) {
+    console.error('Admin order detail error:', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

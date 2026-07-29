@@ -497,8 +497,8 @@ AS $$
 DECLARE updated_order orders;
 BEGIN
   UPDATE orders SET payment_status = 'paid',
-    status = CASE WHEN status = 'pending' THEN 'processing'::order_status
-                  WHEN status = 'awaiting_payment' THEN 'processing'::order_status ELSE status END,
+    -- Keep CASE branches as text: some store DBs use text status columns, not order_status enum
+    status = CASE WHEN status IN ('pending', 'awaiting_payment') THEN 'processing' ELSE status END,
     metadata = COALESCE(metadata, '{}'::jsonb) ||
       jsonb_build_object('moolre_reference', moolre_ref, 'payment_verified_at', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
   WHERE order_number = order_ref RETURNING * INTO updated_order;
