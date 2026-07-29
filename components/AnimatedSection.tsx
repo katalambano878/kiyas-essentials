@@ -82,42 +82,21 @@ export function AnimatedGrid({
   staggerDelay = 100
 }: AnimatedGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [visibleItems, setVisibleItems] = useState<boolean[]>([]);
+  // Default visible so product grids never render as a blank white gap
+  const [visibleItems, setVisibleItems] = useState<boolean[]>(() =>
+    children.map(() => true)
+  );
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          children.forEach((_, index) => {
-            setTimeout(() => {
-              setVisibleItems(prev => {
-                const newState = [...prev];
-                newState[index] = true;
-                return newState;
-              });
-            }, index * staggerDelay);
-          });
-          observer.unobserve(container);
-        }
-      },
-      { threshold: 0.1, rootMargin: '50px' }
-    );
-
-    observer.observe(container);
-
-    return () => observer.unobserve(container);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- children as dep would re-run on every parent re-render
-  }, [children.length, staggerDelay]);
+    setVisibleItems(children.map(() => true));
+  }, [children.length]);
 
   return (
     <div ref={containerRef} className={className}>
       {children.map((child, index) => (
         <div
           key={index}
-          className={`scroll-animate ${visibleItems[index] ? 'is-visible' : ''} ${itemClassName}`}
+          className={`scroll-animate is-visible ${itemClassName}`}
           style={{ transitionDelay: `${index * staggerDelay}ms` }}
         >
           {child}
