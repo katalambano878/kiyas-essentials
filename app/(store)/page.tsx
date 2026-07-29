@@ -39,28 +39,42 @@ export default function Home() {
   useEffect(() => {
     async function fetchData() {
       try {
+        // Fetch independently so a category filter failure never blanks products
+        const productsPromise = supabase
+          .from('products')
+          .select('*, product_variants(*), product_images(*)')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(12);
+
+        const categoriesPromise = supabase
+          .from('categories')
+          .select('id, name, slug, parent_id, position, metadata, image_url')
+          .eq('status', 'active')
+          .is('parent_id', null)
+          .order('position', { ascending: true })
+          .limit(12);
+
         const [productsResult, categoriesResult] = await Promise.all([
-          supabase
-            .from('products')
-            .select('*, product_variants(*), product_images(*)')
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(12),
-          supabase
-            .from('categories')
-            .select('id, name, slug, parent_id, position, metadata, image_url')
-            .eq('status', 'active')
-            .contains('metadata', { featured: true })
-            .is('parent_id', null)
-            .order('position', { ascending: true })
-            .limit(4),
+          productsPromise,
+          categoriesPromise,
         ]);
 
-        if (productsResult.error) throw productsResult.error;
-        setFeaturedProducts(productsResult.data || []);
+        if (productsResult.error) {
+          console.error('Error fetching products:', productsResult.error);
+        } else {
+          setFeaturedProducts(productsResult.data || []);
+        }
 
-        if (categoriesResult.error) throw categoriesResult.error;
-        setFeaturedCategories(categoriesResult.data || []);
+        if (categoriesResult.error) {
+          console.error('Error fetching categories:', categoriesResult.error);
+        } else {
+          const rows = categoriesResult.data || [];
+          const featured = rows.filter(
+            (c: any) => c?.metadata?.featured === true || c?.metadata?.featured === 'true'
+          );
+          setFeaturedCategories((featured.length > 0 ? featured : rows).slice(0, 4));
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {

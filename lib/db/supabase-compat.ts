@@ -31,7 +31,7 @@ type Row = Record<string, any>;
 type Op = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "like" | "ilike" | "is" | "in";
 
 interface Filter {
-  kind: "cmp" | "in" | "is" | "or" | "notIn" | "notIs" | "raw";
+  kind: "cmp" | "in" | "is" | "or" | "notIn" | "notIs" | "contains" | "raw";
   col?: string;
   op?: string;
   value?: any;
@@ -330,6 +330,10 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any; count: number
     else this.filters.push({ kind: "cmp", col, op: `not_${op}`, value });
     return this;
   }
+  contains(col: string, value: any) {
+    this.filters.push({ kind: "contains", col, value });
+    return this;
+  }
   filter(col: string, op: string, value: any) {
     // PostgREST-style textual op. Handle the ones the code uses.
     if (op === "in") {
@@ -409,6 +413,9 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any; count: number
         clauses.push(`NOT (${inner})`);
       } else if (f.kind === "or") {
         clauses.push(this.orClause(f.orParts!, params));
+      } else if (f.kind === "contains") {
+        params.push(typeof f.value === "string" ? f.value : JSON.stringify(f.value ?? {}));
+        clauses.push(`${ident(f.col!)} @> $${params.length}::jsonb`);
       }
     }
     return clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
@@ -1044,7 +1051,13 @@ export function applyPostgrestParams(
       const inner = value.replace(/^\(/, "").replace(/\)$/, "");
       const vals = inner.split(",").map((s) => coerce(s.trim()));
       qb.in(key, vals);
-    }     else {
+    } else if (op === "cs") {
+      try {
+        qb.contains(key, JSON.parse(value));
+      } catch {
+        qb.contains(key, value);
+      }
+    } else {
       qb.filter(key, op, value);
     }
   }

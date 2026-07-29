@@ -143,7 +143,8 @@ type FilterEntry =
   | { kind: 'cmp'; col: string; op: string; value: unknown }
   | { kind: 'or'; parts: string }
   | { kind: 'notIn'; col: string; value: string }
-  | { kind: 'notIs'; col: string; value: unknown };
+  | { kind: 'notIs'; col: string; value: unknown }
+  | { kind: 'contains'; col: string; value: unknown };
 
 class HttpQueryBuilder implements PromiseLike<QueryResult> {
   private table: string;
@@ -243,6 +244,11 @@ class HttpQueryBuilder implements PromiseLike<QueryResult> {
     else this.filters.push({ kind: 'cmp', col, op: `not.${op}`, value });
     return this;
   }
+  /** PostgREST jsonb/array contains → `col=cs.{...}` */
+  contains(col: string, value: unknown) {
+    this.filters.push({ kind: 'contains', col, value });
+    return this;
+  }
   filter(col: string, op: string, value: unknown) {
     if (op === 'in') {
       const raw = String(value).replace(/^\(|\)$/g, '');
@@ -304,6 +310,10 @@ class HttpQueryBuilder implements PromiseLike<QueryResult> {
       } else if (f.kind === 'notIs') {
         const v = f.value === null || f.value === 'null' ? 'null' : formatScalar(f.value);
         params.set(f.col, `not.is.${v}`);
+      } else if (f.kind === 'contains') {
+        const encoded =
+          typeof f.value === 'string' ? f.value : JSON.stringify(f.value ?? {});
+        params.set(f.col, `cs.${encoded}`);
       } else if (f.kind === 'cmp') {
         const op = f.op.startsWith('not.') ? f.op : f.op;
         if (op.startsWith('not.')) {
