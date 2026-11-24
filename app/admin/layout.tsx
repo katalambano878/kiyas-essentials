@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { DEFAULT_LOGO_PATH, DEFAULT_SITE_NAME } from '@/lib/site-defaults';
+import { SmsCreditDashboardCard } from '@/components/admin/SmsCreditDashboardCard';
 
 export default function AdminLayout({
   children,
@@ -471,6 +472,7 @@ export default function AdminLayout({
           </div>
         </header>
 
+        <SmsCreditDashboardCard />
         <main className="p-4 lg:p-6">
           {children}
         </main>
